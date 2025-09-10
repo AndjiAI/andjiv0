@@ -12,6 +12,7 @@ import {
 } from './admin/relabelRuns'
 import { validateAgentNameHandler } from './api/agents'
 import cliAuthRouter from './api/auth/cli'
+import { getLoginPageHTML } from './api/auth/login-page'
 import { isRepoCoveredHandler } from './api/org'
 import usageHandler from './api/usage'
 import { checkAdmin } from './util/check-auth'
@@ -36,6 +37,16 @@ app.get('/', (req, res) => {
 
 app.get('/healthz', (req, res) => {
   res.send('ok')
+})
+
+// Login page for CLI authentication
+app.get('/login', (req, res) => {
+  const authCode = req.query.auth_code as string
+  if (!authCode) {
+    res.status(400).send('Missing auth code')
+    return
+  }
+  res.send(getLoginPageHTML(authCode))
 })
 
 app.post('/api/usage', usageHandler)

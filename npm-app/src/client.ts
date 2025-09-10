@@ -586,13 +586,20 @@ export class Client {
       let shouldRequestLogin = true
       CLI.getInstance().rl.once('line', () => {
         if (shouldRequestLogin) {
-          const openCommand =
-            process.platform === 'win32'
-              ? 'start'
-              : process.platform === 'linux'
-                ? 'xdg-open'
-                : 'open'
-          spawn(openCommand, [loginUrl])
+          // Open browser with platform-specific command
+          if (process.platform === 'win32') {
+            // Windows requires cmd.exe to run start command
+            spawn('cmd.exe', ['/c', 'start', '', loginUrl], { 
+              detached: true, 
+              stdio: 'ignore' 
+            })
+          } else {
+            const openCommand = process.platform === 'linux' ? 'xdg-open' : 'open'
+            spawn(openCommand, [loginUrl], { 
+              detached: true, 
+              stdio: 'ignore' 
+            })
+          }
           console.log(
             "Opened a browser window to log you in! If it doesn't open automatically, you can click this link:",
           )
