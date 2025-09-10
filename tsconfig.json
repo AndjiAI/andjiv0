@@ -1,0 +1,32 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true, // don't place JS everywhere while hacking
+    "baseUrl": ".", // Bun & editors see the aliases
+    "paths": {
+      "@andji/common/*": ["./common/src/*"],
+      "@andji/backend/*": ["./backend/src/*"],
+      "@andji/web/*": ["./web/src/*"],
+      "@andji/evals/*": ["./evals/*"],
+      "@andji/sdk/*": ["./sdk/*"],
+      "@andji/billing/*": ["./packages/billing/src/*"],
+      "@andji/bigquery/*": ["./packages/bigquery/src/*"],
+      "@andji/internal/*": ["./packages/internal/src/*"],
+      "@andji/code-map/*": ["./packages/code-map/*"]
+    }
+  },
+  "files": [],
+  "references": [
+    { "path": "./common" },
+    { "path": "./backend" },
+    { "path": "./npm-app" },
+    { "path": "./web" },
+    { "path": "./evals" },
+    { "path": "./sdk" },
+    { "path": "./packages/billing" },
+    { "path": "./packages/bigquery" },
+    { "path": "./packages/internal" },
+    { "path": "./packages/code-map" },
+    { "path": "./scripts" }
+  ]
+}

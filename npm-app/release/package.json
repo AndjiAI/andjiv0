@@ -1,0 +1,40 @@
+{
+  "name": "andji",
+  "version": "1.0.477",
+  "description": "AI coding agent",
+  "license": "MIT",
+  "bin": {
+    "andji": "index.js"
+  },
+  "scripts": {
+    "preuninstall": "node -e \"const fs = require('fs'); const path = require('path'); const os = require('os'); const binaryPath = path.join(os.homedir(), '.config', 'manicode', process.platform === 'win32' ? 'andji.exe' : 'andji'); try { fs.unlinkSync(binaryPath) } catch (e) { /* ignore if file doesn't exist */ }\""
+  },
+  "files": [
+    "index.js",
+    "README.md"
+  ],
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "tar": "^6.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AndjiAI/andji-community.git"
+  },
+  "homepage": "https://andji.com",
+  "publishConfig": {
+    "access": "public"
+  }
+}

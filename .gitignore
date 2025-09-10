@@ -1,0 +1,40 @@
+.DS_Store
+.idea/
+.vercel
+
+.env
+.env.*
+!.env.example
+.env.worktree
+.worktree-env.sh
+
+# ctags
+tags
+
+node_modules
+dev
+dist
+dist-env
+tsconfig.tsbuildinfo
+.manicode
+__mock-projects__
+.aider*
+.andji*
+**.log
+
+debug/
+
+# Nx cache directories
+.nx/cache
+.nx/workspace-data
+
+# Infisical cache (contains secrets, should not be committed)
+.infisical-cache
+.infisical-cache.tmp
+
+# Large files
+evals/git-evals/*.json
+assets/demo.gif
+web/public/testimonials/*.pdf
+web/public/*.mp4
+web/public/*.webm

@@ -1,0 +1,73 @@
+import type { ToolResultOutput } from '../types/messages/content-part'
+import type z from 'zod/v4'
+
+export const toolNameParam = 'cb_tool_name'
+export const endsAgentStepParam = 'cb_easp'
+export const toolXmlName = 'andji_tool_call'
+export const startToolTag = `<${toolXmlName}>\n`
+export const endToolTag = `\n</${toolXmlName}>`
+
+export const TOOLS_WHICH_WONT_FORCE_NEXT_STEP = [
+  'think_deeply',
+  'set_output',
+  'set_messages',
+  'add_message',
+  'add_subgoal',
+  'update_subgoal',
+  'create_plan',
+]
+
+// List of all available tools
+export const toolNames = [
+  'add_subgoal',
+  'add_message',
+  'browser_logs',
+  'code_search',
+  'create_plan',
+  'end_turn',
+  'find_files',
+  'read_docs',
+  'read_files',
+  'run_file_change_hooks',
+  'run_terminal_command',
+  'set_messages',
+  'set_output',
+  'spawn_agents',
+  'spawn_agents_async',
+  'spawn_agent_inline',
+  'str_replace',
+  'think_deeply',
+  'update_subgoal',
+  'web_search',
+  'write_file',
+] as const
+
+export const publishedTools = [
+  'add_message',
+  'code_search',
+  'end_turn',
+  'find_files',
+  'read_docs',
+  'read_files',
+  'run_file_change_hooks',
+  'run_terminal_command',
+  'set_messages',
+  'set_output',
+  'spawn_agents',
+  'str_replace',
+  'think_deeply',
+  'web_search',
+  'write_file',
+  // 'spawn_agents_async',
+  // 'spawn_agent_inline',
+] as const
+
+export type ToolName = (typeof toolNames)[number]
+export type PublishedToolName = (typeof publishedTools)[number]
+
+export type $ToolParams<T extends ToolName = ToolName> = {
+  toolName: T
+  endsAgentStep: boolean
+  parameters: z.ZodType
+  outputs: z.ZodType<ToolResultOutput[]>
+}

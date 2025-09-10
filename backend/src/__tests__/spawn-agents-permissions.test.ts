@@ -1,0 +1,714 @@
+import { TEST_USER_ID } from '@andji/common/old-constants'
+import { getInitialSessionState } from '@andji/common/types/session-state'
+import {
+  describe,
+  expect,
+  it,
+  beforeEach,
+  afterEach,
+  mock,
+  spyOn,
+} from 'bun:test'
+
+import { mockFileContext, MockWebSocket } from './test-utils'
+import * as runAgentStep from '../run-agent-step'
+import { handleSpawnAgentInline } from '../tools/handlers/tool/spawn-agent-inline'
+import { getMatchingSpawn } from '../tools/handlers/tool/spawn-agent-utils'
+import { handleSpawnAgents } from '../tools/handlers/tool/spawn-agents'
+import * as loggerModule from '../util/logger'
+
+import type { andjiToolCall } from '@andji/common/tools/list'
+import type { AgentTemplate } from '@andji/common/types/agent-template'
+import type { WebSocket } from 'ws'
+
+describe('Spawn Agents Permissions', () => {
+  let mockSendSubagentChunk: any
+  let mockLoopAgentSteps: any
+
+  const createMockAgent = (
+    id: string,
+    spawnableAgents: string[] = [],
+  ): AgentTemplate => ({
+    id,
+    displayName: `Mock ${id}`,
+    outputMode: 'last_message' as const,
+    inputSchema: {
+      prompt: {
+        safeParse: () => ({ success: true }),
+      } as any,
+    },
+    spawnerPrompt: '',
+    model: '',
+    includeMessageHistory: true,
+    toolNames: [],
+    spawnableAgents,
+    systemPrompt: '',
+    instructionsPrompt: '',
+    stepPrompt: '',
+  })
+
+  beforeEach(() => {
+    // Mock logger to reduce noise in tests
+    spyOn(loggerModule.logger, 'debug').mockImplementation(() => {})
+    spyOn(loggerModule.logger, 'error').mockImplementation(() => {})
+    spyOn(loggerModule.logger, 'info').mockImplementation(() => {})
+    spyOn(loggerModule.logger, 'warn').mockImplementation(() => {})
+    spyOn(loggerModule, 'withLoggerContext').mockImplementation(
+      async (context: any, fn: () => Promise<any>) => fn(),
+    )
+
+    // Mock sendSubagentChunk
+    mockSendSubagentChunk = mock(() => {})
+
+    // Mock loopAgentSteps to avoid actual agent execution
+    mockLoopAgentSteps = spyOn(
+      runAgentStep,
+      'loopAgentSteps',
+    ).mockImplementation(async (ws, options) => {
+      return {
+        agentState: {
+          ...options.agentState,
+          messageHistory: [
+            { role: 'assistant', content: 'Mock agent response' },
+          ],
+        },
+        output: { type: 'lastMessage', value: 'Mock agent response' },
+      }
+    })
+  })
+
+  afterEach(() => {
+    mock.restore()
+  })
+
+  describe('getMatchingSpawn function', () => {
+    describe('exact matches with publisher/agent@version format', () => {
+      it('should match exact publisher/agent@version', () => {
+        const spawnableAgents = [
+          'andji/thinker@1.0.0',
+          'andji/reviewer@2.1.0',
+        ]
+        const result = getMatchingSpawn(
+          spawnableAgents,
+          'andji/thinker@1.0.0',
+        )
+        expect(result).toBe('andji/thinker@1.0.0')
+      })
+
+      it('should not match different versions', () => {
+        const spawnableAgents = ['andji/thinker@1.0.0']
+        const result = getMatchingSpawn(
+          spawnableAgents,
+          'andji/thinker@2.0.0',
+        )
+        expect(result).toBeNull()
+      })
+
+      it('should not match different publishers', () => {
+        const spawnableAgents = ['andji/thinker@1.0.0']
+        const result = getMatchingSpawn(spawnableAgents, 'acme/thinker@1.0.0')
+        expect(result).toBeNull()
+      })
+
+      it('should not match different agent names', () => {
+        const spawnableAgents = ['andji/thinker@1.0.0']
+        const result = getMatchingSpawn(
+          spawnableAgents,
+          'andji/reviewer@1.0.0',
+        )
+        expect(result).toBeNull()
+      })
+    })
+
+    describe('publisher/agent format without version', () => {
+      it('should match publisher/agent when child has no version', () => {
+        const spawnableAgents = ['andji/thinker@1.0.0', 'acme/reviewer']
+        const result = getMatchingSpawn(spawnableAgents, 'andji/thinker')
+        expect(result).toBe('andji/thinker@1.0.0')
+      })
+
+      it('should match exact publisher/agent without version', () => {
+        const spawnableAgents = ['andji/thinker', 'acme/reviewer']
+        const result = getMatchingSpawn(spawnableAgents, 'andji/thinker')
+        expect(result).toBe('andji/thinker')
+      })
+
+      it('should not match when publisher differs', () => {
+        const spawnableAgents = ['andji/thinker@1.0.0']
+        const result = getMatchingSpawn(spawnableAgents, 'acme/thinker')
+        expect(result).toBeNull()
+      })
+    })
+
+    describe('agent@version format without publisher', () => {
+      it('should match agent@version when spawnable has no publisher', () => {
+        const spawnableAgents = ['thinker@1.0.0', 'reviewer@2.0.0']
+        const result = getMatchingSpawn(spawnableAgents, 'thinker@1.0.0')
+        expect(result).toBe('thinker@1.0.0')
+      })
+
+      it('should match agent@version when spawnable has publisher but child does not', () => {
+        const spawnableAgents = ['andji/thinker@1.0.0', 'reviewer@2.0.0']
+        const result = getMatchingSpawn(spawnableAgents, 'thinker@1.0.0')
+        expect(result).toBe('andji/thinker@1.0.0')
+      })
+
+      it('should not match when versions differ', () => {
+        const spawnableAgents = ['thinker@1.0.0']
+        const result = getMatchingSpawn(spawnableAgents, 'thinker@2.0.0')
+        expect(result).toBeNull()
+      })
+    })
+
+    describe('simple agent name format', () => {
+      it('should match simple agent name', () => {
+        const spawnableAgents = ['thinker', 'reviewer', 'file-picker']
+        const result = getMatchingSpawn(spawnableAgents, 'thinker')
+        expect(result).toBe('thinker')
+      })
+
+      it('should match simple agent name when spawnable has publisher', () => {
+        const spawnableAgents = ['andji/thinker@1.0.0', 'reviewer']
+        const result = getMatchingSpawn(spawnableAgents, 'thinker')
+        expect(result).toBe('andji/thinker@1.0.0')
+      })
+
+      it('should match simple agent name when spawnable has version', () => {
+        const spawnableAgents = ['thinker@1.0.0', 'reviewer']
+        const result = getMatchingSpawn(spawnableAgents, 'thinker')
+        expect(result).toBe('thinker@1.0.0')
+      })
+
+      it('should not match when agent name differs', () => {
+        const spawnableAgents = ['thinker', 'reviewer']
+        const result = getMatchingSpawn(spawnableAgents, 'file-picker')
+        expect(result).toBeNull()
+      })
+    })
+
+    describe('edge cases', () => {
+      it('should return null for empty agent ID', () => {
+        const spawnableAgents = ['thinker', 'reviewer']
+        const result = getMatchingSpawn(spawnableAgents, '')
+        expect(result).toBeNull()
+      })
+
+      it('should return null for malformed agent ID', () => {
+        const spawnableAgents = ['thinker', 'reviewer']
+        const result = getMatchingSpawn(
+          spawnableAgents,
+          'invalid/agent/format/too/many/slashes',
+        )
+        expect(result).toBeNull()
+      })
+
+      it('should return null when spawnableAgents is empty', () => {
+        const spawnableAgents: string[] = []
+        const result = getMatchingSpawn(spawnableAgents, 'thinker')
+        expect(result).toBeNull()
+      })
+
+      it('should handle malformed spawnable agent IDs gracefully', () => {
+        const spawnableAgents = ['', 'invalid/agent/too/many/parts', 'thinker']
+        const result = getMatchingSpawn(spawnableAgents, 'thinker')
+        expect(result).toBe('thinker')
+      })
+
+      it('should prioritize exact matches over partial matches', () => {
+        const spawnableAgents = ['thinker', 'andji/thinker@1.0.0']
+        const result = getMatchingSpawn(spawnableAgents, 'thinker')
+        expect(result).toBe('thinker') // First match wins
+      })
+    })
+  })
+
+  describe('handleSpawnAgents permission validation', () => {
+    const createSpawnToolCall = (
+      agentType: string,
+      prompt = 'test prompt',
+    ): andjiToolCall<'spawn_agents'> => ({
+      toolName: 'spawn_agents' as const,
+      toolCallId: 'test-tool-call-id',
+      input: {
+        agents: [{ agent_type: agentType, prompt }],
+      },
+    })
+
+    it('should allow spawning when agent is in spawnableAgents list', async () => {
+      const parentAgent = createMockAgent('parent', ['thinker', 'reviewer'])
+      const childAgent = createMockAgent('thinker')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createSpawnToolCall('thinker')
+
+      const { result } = handleSpawnAgents({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: { thinker: childAgent },
+          sendSubagentChunk: mockSendSubagentChunk,
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      const output = await result
+      expect(JSON.stringify(output)).toContain('Mock agent response')
+      expect(mockLoopAgentSteps).toHaveBeenCalledTimes(1)
+    })
+
+    it('should reject spawning when agent is not in spawnableAgents list', async () => {
+      const parentAgent = createMockAgent('parent', ['thinker']) // Only allows thinker
+      const childAgent = createMockAgent('reviewer')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createSpawnToolCall('reviewer') // Try to spawn reviewer
+
+      const { result } = handleSpawnAgents({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: { reviewer: childAgent },
+          sendSubagentChunk: mockSendSubagentChunk,
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      const output = await result
+      expect(JSON.stringify(output)).toContain('Error spawning agent')
+      expect(JSON.stringify(output)).toContain(
+        'is not allowed to spawn child agent type reviewer',
+      )
+      expect(mockLoopAgentSteps).not.toHaveBeenCalled()
+    })
+
+    it('should reject spawning when agent template is not found', async () => {
+      const parentAgent = createMockAgent('parent', ['nonexistent'])
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createSpawnToolCall('nonexistent')
+
+      const { result } = handleSpawnAgents({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: {}, // Empty - agent not found
+          sendSubagentChunk: mockSendSubagentChunk,
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      const output = await result
+      console.log('output', output)
+      expect(JSON.stringify(output)).toContain('Error spawning agent')
+      expect(JSON.stringify(output)).toContain(
+        'Agent type nonexistent not found',
+      )
+      expect(mockLoopAgentSteps).not.toHaveBeenCalled()
+    })
+
+    it('should handle versioned agent permissions correctly', async () => {
+      const parentAgent = createMockAgent('parent', ['andji/thinker@1.0.0'])
+      const childAgent = createMockAgent('andji/thinker@1.0.0')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createSpawnToolCall('andji/thinker@1.0.0')
+
+      const { result } = handleSpawnAgents({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: { 'andji/thinker@1.0.0': childAgent },
+          sendSubagentChunk: mockSendSubagentChunk,
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      const output = await result
+      expect(JSON.stringify(output)).toContain('Mock agent response')
+      expect(mockLoopAgentSteps).toHaveBeenCalledTimes(1)
+    })
+
+    it('should allow spawning simple agent name when parent allows versioned agent', async () => {
+      const parentAgent = createMockAgent('parent', ['andji/thinker@1.0.0'])
+      const childAgent = createMockAgent('andji/thinker@1.0.0')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createSpawnToolCall('thinker') // Simple name
+
+      const { result } = handleSpawnAgents({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: {
+            thinker: childAgent,
+            'andji/thinker@1.0.0': childAgent, // Register with both keys
+          },
+          sendSubagentChunk: mockSendSubagentChunk,
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      const output = await result
+      expect(JSON.stringify(output)).toContain('Mock agent response')
+      expect(mockLoopAgentSteps).toHaveBeenCalledTimes(1)
+    })
+
+    it('should reject when version mismatch exists', async () => {
+      const parentAgent = createMockAgent('parent', ['andji/thinker@1.0.0'])
+      const childAgent = createMockAgent('andji/thinker@2.0.0')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createSpawnToolCall('andji/thinker@2.0.0')
+
+      const { result } = handleSpawnAgents({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: { 'andji/thinker@2.0.0': childAgent },
+          sendSubagentChunk: mockSendSubagentChunk,
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      const output = await result
+      expect(JSON.stringify(output)).toContain('Error spawning agent')
+      expect(JSON.stringify(output)).toContain(
+        'is not allowed to spawn child agent type',
+      )
+      expect(mockLoopAgentSteps).not.toHaveBeenCalled()
+    })
+
+    it('should handle multiple agents with mixed success/failure', async () => {
+      const parentAgent = createMockAgent('parent', ['thinker']) // Only allows thinker
+      const thinkerAgent = createMockAgent('thinker')
+      const reviewerAgent = createMockAgent('reviewer')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+
+      const toolCall: andjiToolCall<'spawn_agents'> = {
+        toolName: 'spawn_agents' as const,
+        toolCallId: 'test-tool-call-id',
+        input: {
+          agents: [
+            { agent_type: 'thinker', prompt: 'Think about this' },
+            { agent_type: 'reviewer', prompt: 'Review this' }, // Should fail
+          ],
+        },
+      }
+
+      const { result } = handleSpawnAgents({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: {
+            thinker: thinkerAgent,
+            reviewer: reviewerAgent,
+          },
+          sendSubagentChunk: mockSendSubagentChunk,
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      const output = await result
+      expect(JSON.stringify(output)).toContain('Mock agent response') // Successful thinker spawn
+      expect(JSON.stringify(output)).toContain('Error spawning agent') // Failed reviewer spawn
+      expect(JSON.stringify(output)).toContain(
+        'is not allowed to spawn child agent type reviewer',
+      )
+      expect(mockLoopAgentSteps).toHaveBeenCalledTimes(1) // Only thinker was spawned
+    })
+  })
+
+  describe('handleSpawnAgentInline permission validation', () => {
+    const createInlineSpawnToolCall = (
+      agentType: string,
+      prompt = 'test prompt',
+    ): andjiToolCall<'spawn_agent_inline'> => ({
+      toolName: 'spawn_agent_inline' as const,
+      toolCallId: 'test-tool-call-id',
+      input: {
+        agent_type: agentType,
+        prompt,
+      },
+    })
+
+    it('should allow spawning inline agent when agent is in spawnableAgents list', async () => {
+      const parentAgent = createMockAgent('parent', ['thinker', 'reviewer'])
+      const childAgent = createMockAgent('thinker')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createInlineSpawnToolCall('thinker')
+
+      const { result } = handleSpawnAgentInline({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: { thinker: childAgent },
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      await result // Should not throw
+      expect(mockLoopAgentSteps).toHaveBeenCalledTimes(1)
+    })
+
+    it('should reject spawning inline agent when agent is not in spawnableAgents list', async () => {
+      const parentAgent = createMockAgent('parent', ['thinker']) // Only allows thinker
+      const childAgent = createMockAgent('reviewer')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createInlineSpawnToolCall('reviewer') // Try to spawn reviewer
+
+      const { result } = handleSpawnAgentInline({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: { reviewer: childAgent },
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      await expect(result).rejects.toThrow(
+        'is not allowed to spawn child agent type reviewer',
+      )
+      expect(mockLoopAgentSteps).not.toHaveBeenCalled()
+    })
+
+    it('should reject spawning inline agent when agent template is not found', async () => {
+      const parentAgent = createMockAgent('parent', ['nonexistent'])
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createInlineSpawnToolCall('nonexistent')
+
+      const { result } = handleSpawnAgentInline({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: {}, // Empty - agent not found
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      await expect(result).rejects.toThrow('Agent type nonexistent not found')
+      expect(mockLoopAgentSteps).not.toHaveBeenCalled()
+    })
+
+    it('should handle versioned inline agent permissions correctly', async () => {
+      const parentAgent = createMockAgent('parent', ['andji/thinker@1.0.0'])
+      const childAgent = createMockAgent('andji/thinker@1.0.0')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createInlineSpawnToolCall('andji/thinker@1.0.0')
+
+      const { result } = handleSpawnAgentInline({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: { 'andji/thinker@1.0.0': childAgent },
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      await result // Should not throw
+      expect(mockLoopAgentSteps).toHaveBeenCalledTimes(1)
+    })
+
+    it('should allow spawning simple agent name inline when parent allows versioned agent', async () => {
+      const parentAgent = createMockAgent('parent', ['andji/thinker@1.0.0'])
+      const childAgent = createMockAgent('andji/thinker@1.0.0')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createInlineSpawnToolCall('thinker') // Simple name
+
+      const { result } = handleSpawnAgentInline({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: {
+            thinker: childAgent,
+            'andji/thinker@1.0.0': childAgent, // Register with both keys
+          },
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      await result // Should not throw
+      expect(mockLoopAgentSteps).toHaveBeenCalledTimes(1)
+    })
+
+    it('should reject inline spawn when version mismatch exists', async () => {
+      const parentAgent = createMockAgent('parent', ['andji/thinker@1.0.0'])
+      const childAgent = createMockAgent('andji/thinker@2.0.0')
+      const ws = new MockWebSocket() as unknown as WebSocket
+      const sessionState = getInitialSessionState(mockFileContext)
+      const toolCall = createInlineSpawnToolCall('andji/thinker@2.0.0')
+
+      const { result } = handleSpawnAgentInline({
+        previousToolCallFinished: Promise.resolve(),
+        toolCall,
+        fileContext: mockFileContext,
+        clientSessionId: 'test-session',
+        userInputId: 'test-input',
+        writeToClient: () => {},
+        getLatestState: () => ({ messages: [] }),
+        state: {
+          ws,
+          fingerprintId: 'test-fingerprint',
+          userId: TEST_USER_ID,
+          agentTemplate: parentAgent,
+          localAgentTemplates: { 'andji/thinker@2.0.0': childAgent },
+          messages: [],
+          agentState: sessionState.mainAgentState,
+        },
+      })
+
+      await expect(result).rejects.toThrow(
+        'is not allowed to spawn child agent type',
+      )
+      expect(mockLoopAgentSteps).not.toHaveBeenCalled()
+    })
+
+    it('should validate required state parameters for inline spawn', async () => {
+      const parentAgent = createMockAgent('parent', ['thinker'])
+      const toolCall = createInlineSpawnToolCall('thinker')
+
+      expect(() => {
+        handleSpawnAgentInline({
+          previousToolCallFinished: Promise.resolve(),
+          toolCall,
+          fileContext: mockFileContext,
+          clientSessionId: 'test-session',
+          userInputId: 'test-input',
+          writeToClient: () => {},
+          getLatestState: () => ({ messages: [] }),
+          state: {
+            // Missing required fields like ws, fingerprintId, etc.
+            agentTemplate: parentAgent,
+            localAgentTemplates: {},
+          },
+        })
+      }).toThrow('Missing WebSocket in state')
+      expect(mockLoopAgentSteps).not.toHaveBeenCalled()
+    })
+  })
+})

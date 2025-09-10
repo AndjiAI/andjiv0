@@ -1,0 +1,49 @@
+{
+  "name": "@andji/internal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "import": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./loops": {
+      "bun": "./src/loops/index.ts",
+      "import": "./src/loops/index.ts",
+      "types": "./src/loops/index.ts",
+      "default": "./src/loops/index.ts"
+    },
+    "./openrouter-ai-sdk": {
+      "bun": "./src/openrouter-ai-sdk/index.ts",
+      "import": "./src/openrouter-ai-sdk/index.ts",
+      "types": "./src/openrouter-ai-sdk/index.ts",
+      "default": "./src/openrouter-ai-sdk/index.ts"
+    },
+    "./*": {
+      "bun": "./src/*.ts",
+      "import": "./src/*.ts",
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "bun test"
+  },
+  "sideEffects": false,
+  "engines": {
+    "bun": ">=1.2.11"
+  },
+  "dependencies": {
+    "@andji/common": "workspace:*",
+    "drizzle-orm": "*",
+    "loops": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "22",
+    "@types/bun": "^1.2.11"
+  }
+}

@@ -1,0 +1,49 @@
+---
+title: 'andji Best Practices'
+section: 'tips'
+tags: ['review', 'best-practices']
+order: 1
+---
+
+# andji Best Practices
+
+Learn how to use andji to streamline your code review process.
+
+## Start in a Git Repo
+
+Ensure you're in a Git repository before starting andji. This will allow you to track changes that andji makes to your code.
+
+If andji introduces an issue you don't like, you can easily revert to the previous version.
+
+## Leverage `.gitignore` in your repo
+
+andji will ignore files specified in your `.gitignore` file. This allows you to specify files that you don't want andji to read, like configuration files or build artifacts.
+
+If there are files you want to keep tracked in Git, but you don't want andji to read, you can create a `.andjiignore` file in your repo.
+
+## Planning
+
+andji is really good at ad-hoc changes, but sometimes you have bigger features to build. You can ask andji to help plan out all the details of your feature before you start coding!
+
+Do a long brain dump of your feature, with as much technical detail as you want to consider. Don't worry about formatting it nicely.
+
+Then, ask andji to `re-word what I said in a goal-oriented plan, and output that to a `plan.md` file in markdown format.
+
+andji will write out what it thinks is the best way to implement your feature, and you can use that as a starting point! Make sure to read through it carefully and adjust anything needed.
+
+Then, you can simply ask andji to build the feature, using the `plan.md` file you both collaborated on as a guide.
+
+## Include docs via pasting a link
+
+Make andji even smarter by connecting it with external documentation:
+
+- Include URLs in your messages and andji will automatically scrape and convert them to markdown format
+- Add documentation links to your knowledge.md files for automatic scraping on startup
+- Perfect for:
+  - API documentation
+  - Framework guides
+  - Library references
+  - Design patterns
+  - Stack Overflow solutions
+- The scraped content becomes part of andji's context, helping it provide more accurate assistance
+- Example: "Here's the docs for the library I'm using: [url]. Can you help me implement feature X following their best practices?"

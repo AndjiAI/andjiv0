@@ -1,0 +1,193 @@
+import type { AgentTemplate } from '@andji/common/types/agent-template'
+import db from '@andji/common/db'
+import * as schema from '@andji/common/db/schema'
+import { and, desc, eq } from 'drizzle-orm'
+
+import { ProjectFileContext } from '@andji/common/util/file'
+import { logger } from '../util/logger'
+import {
+  DynamicAgentValidationError,
+  validateAgents,
+  validateSingleAgent,
+} from '@andji/common/templates/agent-validation'
+import { DynamicAgentTemplate } from '@andji/common/types/dynamic-agent-template'
+import { DEFAULT_ORG_PREFIX } from '@andji/common/util/agent-name-normalization'
+import { parsePublishedAgentId } from '@andji/common/util/agent-id-parsing'
+
+export type AgentRegistry = Record<string, AgentTemplate>
+
+// Global database cache - only state in the system
+const databaseAgentCache = new Map<string, AgentTemplate | null>()
+
+/**
+ * Fetch an agent from the database by publisher/agent-id[@version] format
+ */
+async function fetchAgentFromDatabase(parsedAgentId: {
+  publisherId: string
+  agentId: string
+  version?: string
+}): Promise<AgentTemplate | null> {
+  const { publisherId, agentId, version } = parsedAgentId
+
+  try {
+    let agentConfig
+
+    if (version && version !== 'latest') {
+      // Query for specific version
+      agentConfig = await db
+        .select()
+        .from(schema.agentConfig)
+        .where(
+          and(
+            eq(schema.agentConfig.id, agentId),
+            eq(schema.agentConfig.publisher_id, publisherId),
+            eq(schema.agentConfig.version, version),
+          ),
+        )
+        .then((rows) => rows[0])
+    } else {
+      // Query for latest version
+      agentConfig = await db
+        .select()
+        .from(schema.agentConfig)
+        .where(
+          and(
+            eq(schema.agentConfig.id, agentId),
+            eq(schema.agentConfig.publisher_id, publisherId),
+          ),
+        )
+        .orderBy(
+          desc(schema.agentConfig.major),
+          desc(schema.agentConfig.minor),
+          desc(schema.agentConfig.patch),
+        )
+        .limit(1)
+        .then((rows) => rows[0])
+    }
+
+    if (!agentConfig) {
+      logger.debug(
+        { publisherId, agentId, version },
+        'fetchAgentFromDatabase: Agent not found in database',
+      )
+      return null
+    }
+
+    const rawAgentData = agentConfig.data as DynamicAgentTemplate
+
+    // Validate the raw agent data with the original agentId (not full identifier)
+    const validationResult = validateSingleAgent(
+      { ...rawAgentData, id: agentId },
+      {
+        filePath: `${publisherId}/${agentId}@${agentConfig.version}`,
+      },
+    )
+
+    if (!validationResult.success) {
+      logger.error(
+        {
+          publisherId,
+          agentId,
+          version: agentConfig.version,
+          error: validationResult.error,
+        },
+        'fetchAgentFromDatabase: Agent validation failed',
+      )
+      return null
+    }
+
+    // Set the correct full agent ID for the final template
+    const agentTemplate = {
+      ...validationResult.agentTemplate!,
+      id: `${publisherId}/${agentId}@${agentConfig.version}`,
+    }
+
+    logger.debug(
+      {
+        publisherId,
+        agentId,
+        version: agentConfig.version,
+        fullAgentId: agentTemplate.id,
+      },
+      'fetchAgentFromDatabase: Successfully loaded and validated agent from database',
+    )
+
+    return agentTemplate
+  } catch (error) {
+    logger.error(
+      { publisherId, agentId, version, error },
+      'fetchAgentFromDatabase: Error fetching agent from database',
+    )
+    return null
+  }
+}
+
+/**
+ * Single function to look up an agent template with clear priority order:
+ * 1. localAgentTemplates (dynamic agents + static templates)
+ * 2. Database cache
+ * 3. Database query
+ */
+export async function getAgentTemplate(
+  agentId: string,
+  localAgentTemplates: Record<string, AgentTemplate>,
+): Promise<AgentTemplate | null> {
+  // 1. Check localAgentTemplates first (dynamic agents + static templates)
+  if (localAgentTemplates[agentId]) {
+    return localAgentTemplates[agentId]
+  }
+  // 2. Check database cache
+  if (databaseAgentCache.has(agentId)) {
+    return databaseAgentCache.get(agentId) || null
+  }
+
+  const parsed = parsePublishedAgentId(agentId)
+  if (!parsed) {
+    // If agentId doesn't parse as publisher/agent format, try as andji/agentId
+    const andjiParsed = parsePublishedAgentId(
+      `${DEFAULT_ORG_PREFIX}${agentId}`,
+    )
+    if (andjiParsed) {
+      const dbAgent = await fetchAgentFromDatabase(andjiParsed)
+      if (dbAgent) {
+        databaseAgentCache.set(dbAgent.id, dbAgent)
+        return dbAgent
+      }
+    }
+    logger.debug({ agentId }, 'getAgentTemplate: Failed to parse agent ID')
+    return null
+  }
+
+  // 3. Query database (only for publisher/agent-id format)
+  const dbAgent = await fetchAgentFromDatabase(parsed)
+  if (dbAgent && parsed.version && parsed.version !== 'latest') {
+    // Cache only specific versions to avoid stale 'latest' results
+    databaseAgentCache.set(dbAgent.id, dbAgent)
+  }
+  return dbAgent
+}
+
+/**
+ * Assemble local agent templates from fileContext + static templates
+ */
+export function assembleLocalAgentTemplates(fileContext: ProjectFileContext): {
+  agentTemplates: Record<string, AgentTemplate>
+  validationErrors: DynamicAgentValidationError[]
+} {
+  // Load dynamic agents using the service
+  const { templates: dynamicTemplates, validationErrors } = validateAgents(
+    fileContext.agentTemplates || {},
+  )
+
+  // Use dynamic templates only
+
+  const agentTemplates = { ...dynamicTemplates }
+  return { agentTemplates, validationErrors }
+}
+
+/**
+ * Clear the database agent cache (useful for testing)
+ */
+export function clearDatabaseCache(): void {
+  databaseAgentCache.clear()
+}

@@ -1,0 +1,74 @@
+{
+  "name": "@andji/sdk",
+  "private": false,
+  "access": "public",
+  "version": "0.1.29",
+  "description": "Official SDK for Andji — AI coding agent & framework",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/sdk/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/sdk/src/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "default": "./dist/esm/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "bun run build.ts",
+    "build:verify": "bun run build && bun run smoke-test && bun run smoke-test:dist",
+    "smoke-test": "bun run smoke-test.ts",
+    "smoke-test:dist": "bun run smoke-test-dist.ts",
+    "clean": "rm -rf dist",
+    "prepare-dist": "node scripts/publish.js --dry-run",
+    "publish-sdk": "node scripts/publish.js --public",
+    "publish-dry-run": "bun run build:verify && node scripts/publish.js --dry-run",
+    "prepack": "bun run build",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "bun test"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "andji",
+    "ai",
+    "code-editing",
+    "assistant",
+    "sdk",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AndjiAI/andji.git",
+    "directory": "sdk"
+  },
+  "homepage": "https://andji.com",
+  "bugs": {
+    "url": "https://github.com/AndjiAI/andji/issues"
+  },
+  "dependencies": {
+    "@vscode/ripgrep": "1.15.14",
+    "@vscode/tree-sitter-wasm": "0.1.4",
+    "ai": "^5.0.0",
+    "diff": "8.0.2",
+    "web-tree-sitter": "0.25.6",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.11",
+    "@types/diff": "8.0.0",
+    "@types/node": "22"
+  },
+  "author": ""
+}

@@ -1,0 +1,91 @@
+---
+title: 'FAQ'
+section: 'help'
+tags: ['faq', 'introduction']
+order: 2
+---
+
+# FAQ
+
+## What can andji be used for?
+
+Our users use andji to write frontend and backend code in every major language and framework. It can write features, tests, and scripts, and more.
+
+You can also use andji to run CLI commands, configure your build, review your code, or answer questions on your codebase.
+
+## What should I try first?
+
+Try tinkering with a simple project from one of our [starter templates](https://github.com/andjiAI/andji-community/tree/main/starter-templates) or [community showcase](https://github.com/andjiAI/andji-community/tree/main/showcase), e.g.:
+
+```bash
+andji --create nextjs my-app
+```
+
+Or:
+
+```bash
+andji --create minecraft-simple
+```
+
+## What model does andji use?
+
+We use multiple models to get better results: Claude Sonnet for most of the coding, Gemini Flash for quick tasks and to find relevant files, Gemini 2.5 Pro for thinking (in --max mode), and we also use a speculative decoding model from Relace AI for fast file rewrites. We use o3-mini as a file editing fallback, and gpt-4o-mini for some trivial tasks.
+
+## Do you store my data?
+
+We don't store your codebase. Our server is a thin client that passes data along to OpenAI and Anthropic. We store portions of your chats to help us debug. Soon, we plan to support a Privacy Mode where none of your data at all is stored.
+
+## Can I trust andji with full access to my terminal?
+
+None of our users have had significant issues so far. However, if you prefer an extra layer of safety, we made a [Dockerfile](https://github.com/andjiAI/andji-community/tree/main/utils/docker) that you can use. It'll set up andji in an environment that's isolated from your filesystem and only has the code you want to share.
+
+## Can I specify custom instructions for andji?
+
+Yes! We recommend you create knowledge.md files to give andji more context about your codebase, like you're introducing it to another engineer. All file names ending in knowledge.md are loaded into context automatically, and you can use the files to do your own prompt engineering for andji.
+
+If you do not have a knowledge.md file, andji typically will not create one, but it will update existing knowledge.md files autonomously. The andji codebase currently has a knowledge.md in almost every directory.
+
+## Can I tell andji to ignore certain files?
+
+andji by default will not read files that are specified in your `.gitignore`. You can also create a `.andjiignore` file to specify additional files or folders to ignore.
+
+### What if I want andji to not ignore some files in the `.gitignore`?
+
+The `.andjiignore` follows standard `.gitignore` negation rules as well! So to ignore a file from git but not from andji:
+
+```.gitignore
+path/to/file
+```
+
+```.andjiignore
+!path/to/file
+```
+
+Take note that if you want to negate something in a nested subdirectory, you need to first negate each of the parent directories first (assuming they were ignored by some other rule). So something like:
+
+```.gitignore
+# ignore everything
+**
+```
+
+```.andjiignore
+# negate: path/to/file
+!path/to/
+!path/to/file
+```
+
+The final set of files ignored by andji are determined by the contents of `.gitignore`, followed by the contents of `.andjiignore`.
+
+## Why does andji cost more?
+
+Compared to alternatives, andji does more LLM calls using more examples from your codebase, leading to better code edits. We try to get you the best performance per dollar, but we bias towards spending more for better results. However, we are far [cheaper than some alternatives](https://x.com/jahooma/status/1894224663817195599).
+
+## How does andji compare to Claude Code?
+
+Anthropic recently released [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview), their own AI coding assistant that also uses Claude 3.7 Sonnet. For a detailed comparison between andji and Claude Code, see [andji vs Claude Code](/docs/advanced#andji-vs-claude-code). TLDR: andji is faster, cheaper, and more adept at analyzing large codebases.
+
+## I have more questions!
+
+We're happy to answer! Contact us at [support@andji.com](mailto:support@andji.com) or [join our Discord](https://discord.gg/mcWTGjgTj3)!
+
+Having technical issues? Check out our [Troubleshooting](/docs/advanced/troubleshooting) guide for solutions to common problems.
