@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(git commit:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Read(//c/Users/lucas/Desktop/EVERYTHING/andji/packages/internal/src/**)",
+      "Read(//c/Users/lucas/Desktop/EVERYTHING/andji/**)"
     ],
     "deny": [],
     "ask": []

@@ -12,6 +12,7 @@ import {
 } from './admin/relabelRuns'
 import { validateAgentNameHandler } from './api/agents'
 import cliAuthRouter from './api/auth/cli'
+import demoAuthRouter from './api/auth/demo'
 import { isRepoCoveredHandler } from './api/org'
 import usageHandler from './api/usage'
 import { checkAdmin } from './util/check-auth'
@@ -44,6 +45,9 @@ app.get('/api/agents/validate-name', validateAgentNameHandler)
 
 // Mount CLI authentication routes
 app.use('/api/auth/cli', cliAuthRouter)
+
+// Mount demo authentication routes (MVP)
+app.use('/api/auth/demo', demoAuthRouter)
 
 // Enable CORS for preflight requests to the admin relabel endpoint
 app.options('/api/admin/relabel-for-user', cors())

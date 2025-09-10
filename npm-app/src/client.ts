@@ -90,6 +90,7 @@ import { Spinner } from './utils/spinner'
 import { toolRenderers } from './utils/tool-renderers'
 import { createXMLStreamParser } from './utils/xml-stream-parser'
 import { getScrapedContentBlocks, parseUrlsFromContent } from './web-scraper'
+import { demoLogin } from './demo-auth'
 
 import type { GitCommand, MakeNullable } from './types'
 import type {
@@ -720,6 +721,35 @@ export class Client {
       )
       this.freshPrompt()
     }
+  }
+
+  async demoLogin() {
+    if (this.user) {
+      console.log(
+        `You are already logged in as ${this.user.name}. Please enter "logout" first if you want to login again.`,
+      )
+      this.freshPrompt()
+      return
+    }
+
+    console.log('🚀 Demo login - instant authentication for MVP testing!')
+    
+    const fingerprintId = await this.fingerprintId
+    const user = await demoLogin(fingerprintId)
+    
+    if (user) {
+      this.user = user
+      identifyUser(user)
+      console.log(green(`✅ Logged in as ${user.name} (Demo Mode)`))
+      console.log('You can now start using Andji!')
+      
+      // Reconnect with auth
+      this.webSocket.forceReconnect()
+    } else {
+      console.error(red('Demo login failed. Please check your backend connection.'))
+    }
+    
+    this.freshPrompt()
   }
 
   public setUsage(usageData: Omit<UsageResponse, 'type'>) {

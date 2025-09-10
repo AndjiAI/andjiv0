@@ -715,9 +715,10 @@ export class CLI {
         displayGreeting(this.costMode, client.user.name)
       } else {
         console.log(
-          `Welcome to andji! Give us a sec to get your account set up...`,
+          `Welcome to andji! Starting in demo mode for quick testing...`,
         )
-        await client.login()
+        // Auto-login with demo for MVP
+        await client.demoLogin()
         return
       }
       this.freshPrompt()
@@ -921,6 +922,11 @@ export class CLI {
     }
     if (this.isCommandOrAlias(cleanInput, 'login')) {
       await Client.getInstance().login()
+      checkpointManager.clearCheckpoints()
+      return null
+    }
+    if (this.isCommandOrAlias(cleanInput, 'demo')) {
+      await Client.getInstance().demoLogin()
       checkpointManager.clearCheckpoints()
       return null
     }
