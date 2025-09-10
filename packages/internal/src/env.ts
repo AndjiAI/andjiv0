@@ -25,8 +25,8 @@ const envSchema = {
     // Web/Database variables
     DATABASE_URL: z.string().min(1),
     GOOGLE_SITE_VERIFICATION_ID: z.string().optional(),
-    andji_GITHUB_ID: z.string().min(1),
-    andji_GITHUB_SECRET: z.string().min(1),
+    ANDJI_GITHUB_ID: z.string().min(1),
+    ANDJI_GITHUB_SECRET: z.string().min(1),
     NEXTAUTH_URL: z.string().url().optional(),
     NEXTAUTH_SECRET: z.string().min(1),
     STRIPE_SECRET_KEY: z.string().min(1),
@@ -43,8 +43,8 @@ const envSchema = {
   },
   client: {
     NEXT_PUBLIC_CB_ENVIRONMENT: z.string().min(1),
-    NEXT_PUBLIC_andji_APP_URL: z.string().url().min(1),
-    NEXT_PUBLIC_andji_BACKEND_URL: z.string().min(1),
+    NEXT_PUBLIC_ANDJI_APP_URL: z.string().url().min(1),
+    NEXT_PUBLIC_ANDJI_BACKEND_URL: z.string().min(1),
     NEXT_PUBLIC_SUPPORT_EMAIL: z.string().email().min(1),
     NEXT_PUBLIC_POSTHOG_API_KEY: z.string().optional().default(''),
     NEXT_PUBLIC_POSTHOG_HOST_URL: z.string().url().optional(),
@@ -72,8 +72,8 @@ const envSchema = {
     // Web/Database variables
     DATABASE_URL: process.env.DATABASE_URL,
     GOOGLE_SITE_VERIFICATION_ID: process.env.GOOGLE_SITE_VERIFICATION_ID,
-    andji_GITHUB_ID: process.env.andji_GITHUB_ID,
-    andji_GITHUB_SECRET: process.env.andji_GITHUB_SECRET,
+    ANDJI_GITHUB_ID: process.env.ANDJI_GITHUB_ID,
+    ANDJI_GITHUB_SECRET: process.env.ANDJI_GITHUB_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
@@ -90,9 +90,9 @@ const envSchema = {
 
     // Client variables
     NEXT_PUBLIC_CB_ENVIRONMENT: process.env.NEXT_PUBLIC_CB_ENVIRONMENT,
-    NEXT_PUBLIC_andji_APP_URL: process.env.NEXT_PUBLIC_andji_APP_URL,
-    NEXT_PUBLIC_andji_BACKEND_URL:
-      process.env.NEXT_PUBLIC_andji_BACKEND_URL,
+    NEXT_PUBLIC_ANDJI_APP_URL: process.env.NEXT_PUBLIC_ANDJI_APP_URL,
+    NEXT_PUBLIC_ANDJI_BACKEND_URL:
+      process.env.NEXT_PUBLIC_ANDJI_BACKEND_URL,
     NEXT_PUBLIC_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_SUPPORT_EMAIL,
     NEXT_PUBLIC_POSTHOG_API_KEY: process.env.NEXT_PUBLIC_POSTHOG_API_KEY,
     NEXT_PUBLIC_POSTHOG_HOST_URL: process.env.NEXT_PUBLIC_POSTHOG_HOST_URL,
