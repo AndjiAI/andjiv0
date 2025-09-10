@@ -40,12 +40,67 @@ app.get('/healthz', (req, res) => {
 })
 
 // Login page for CLI authentication
-app.get('/login', (req, res) => {
+app.get('/login', async (req, res) => {
   const authCode = req.query.auth_code as string
   if (!authCode) {
     res.status(400).send('Missing auth code')
     return
   }
+  
+  // Parse the auth code
+  const [fingerprintId, expiresAt, fingerprintHash] = authCode.split('.')
+  
+  // For MVP, auto-create a session when login page is accessed
+  // In production, this would verify with GitHub OAuth
+  try {
+    const db = (await import('@andji/common/db')).default
+    const schemaModule = await import('@andji/common/db/schema')
+    const schema = schemaModule
+    const { eq } = await import('drizzle-orm')
+    const { nanoid } = await import('nanoid')
+    
+    // Check if user exists or create a demo user
+    let userId = 'demo-user-' + fingerprintId.substring(0, 8)
+    
+    const existingUser = await db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, userId))
+      .limit(1)
+    
+    if (existingUser.length === 0) {
+      // Create a demo user
+      await db.insert(schema.user).values({
+        id: userId,
+        email: `demo-${fingerprintId.substring(0, 8)}@andji.local`,
+        name: 'Demo User',
+        emailVerified: new Date(),
+      })
+    }
+    
+    // Create or update session
+    const sessionToken = nanoid()
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+    
+    // Delete any existing sessions for this fingerprint
+    await db
+      .delete(schema.session)
+      .where(eq(schema.session.fingerprint_id, fingerprintId))
+    
+    // Create new session
+    await db.insert(schema.session).values({
+      sessionToken,
+      userId,
+      expires,
+      fingerprint_id: fingerprintId,
+      fingerprint_hash: fingerprintHash,
+    })
+    
+    logger.info({ fingerprintId, userId }, 'Created demo session for CLI login')
+  } catch (error) {
+    logger.error({ error }, 'Error creating demo session')
+  }
+  
   res.send(getLoginPageHTML(authCode))
 })
 

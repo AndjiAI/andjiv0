@@ -29,7 +29,7 @@ router.post('/code', async (req, res) => {
     const fingerprintHash = genAuthCode(
       fingerprintId,
       expiresAt.toString(),
-      env.NEXTAUTH_SECRET
+      env.NEXTAUTH_SECRET || 'default-secret-key'
     )
 
     // Check if this fingerprint has any active sessions
