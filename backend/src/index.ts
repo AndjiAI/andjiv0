@@ -59,6 +59,22 @@ app.get('/login', async (req, res) => {
     const { eq } = await import('drizzle-orm')
     const { nanoid } = await import('nanoid')
     
+    // First, ensure the fingerprint exists in the database
+    const existingFingerprint = await db
+      .select()
+      .from(schema.fingerprint)
+      .where(eq(schema.fingerprint.id, fingerprintId))
+      .limit(1)
+    
+    if (existingFingerprint.length === 0) {
+      // Create the fingerprint entry
+      await db.insert(schema.fingerprint).values({
+        id: fingerprintId,
+        sig_hash: fingerprintHash,
+        created_at: new Date(),
+      })
+    }
+    
     // Check if user exists or create a demo user
     let userId = 'demo-user-' + fingerprintId.substring(0, 8)
     
