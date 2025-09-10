@@ -5,6 +5,7 @@ import { flushAnalytics, initAnalytics } from '@andji/common/analytics'
 import { env } from '@andji/internal'
 import cors from 'cors'
 import express from 'express'
+import runMigrations from '@andji/common/db/run-migrations'
 
 import {
   getTracesForUserHandler,
@@ -90,11 +91,28 @@ initAnalytics()
 
 const server = http.createServer(app)
 
-server.listen(port, () => {
-  logger.debug(`🚀 Server is running on port ${port}`)
-  console.log(`🚀 Server is running on port ${port}`)
-})
-webSocketListen(server, '/ws')
+async function bootstrap() {
+  // Apply DB migrations before starting the server (works on Render free tier)
+  try {
+    console.log('Applying database migrations...')
+    await runMigrations()
+    console.log('Database migrations complete.')
+  } catch (err) {
+    console.error('Failed to run database migrations', err)
+    logger.error({ err }, 'Failed to run database migrations')
+    // Exit so the platform can restart the service and surface the failure
+    process.exit(1)
+  }
+
+  server.listen(port, () => {
+    logger.debug(`🚀 Server is running on port ${port}`)
+    console.log(`🚀 Server is running on port ${port}`)
+  })
+  webSocketListen(server, '/ws')
+}
+
+// Kick off startup
+bootstrap()
 
 let shutdownInProgress = false
 // Graceful shutdown handler for both SIGTERM and SIGINT

@@ -11,6 +11,12 @@
       "types": "./src/db/index.ts",
       "default": "./src/db/index.ts"
     },
+    "./db/*": {
+      "bun": "./src/db/*.ts",
+      "import": "./src/db/*.ts",
+      "types": "./src/db/*.ts",
+      "default": "./src/db/*.ts"
+    },
     "./*": {
       "bun": "./src/*.ts",
       "import": "./src/*.ts",
