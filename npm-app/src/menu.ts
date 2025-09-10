@@ -215,7 +215,7 @@ export const interactiveCommandDetails: CommandInfo[] = [
     description: 'Easter egg',
     isSlashCommand: false, // Hidden from slash menu
     commandText: '', // Hidden from main menu
-    aliases: ['uuddlrlrba', 'andjiy'],
+    aliases: ['uuddlrlrba', 'andji'],
     requireSlash: false,
   },
 ]

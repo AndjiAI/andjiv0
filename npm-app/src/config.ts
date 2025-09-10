@@ -1,14 +1,18 @@
 export const isProduction = process.env.NEXT_PUBLIC_CB_ENVIRONMENT === 'prod'
 
-export const websocketUrl =
-  process.env.NEXT_PUBLIC_andji_BACKEND_URL?.includes('localhost')
-    ? `ws://${process.env.NEXT_PUBLIC_andji_BACKEND_URL}/ws`
-    : `wss://${process.env.NEXT_PUBLIC_andji_BACKEND_URL}/ws`
+// Default to production backend if not specified
+const BACKEND_URL = process.env.NEXT_PUBLIC_andji_BACKEND_URL || 'andji-backend.onrender.com'
+const APP_URL = process.env.NEXT_PUBLIC_andji_APP_URL || 'https://andji-backend.onrender.com'
 
-export const websiteUrl = process.env.NEXT_PUBLIC_andji_APP_URL
+export const websocketUrl =
+  BACKEND_URL.includes('localhost')
+    ? `ws://${BACKEND_URL}/ws`
+    : `wss://${BACKEND_URL}/ws`
+
+export const websiteUrl = APP_URL
 export const backendUrl =
-  process.env.NEXT_PUBLIC_andji_BACKEND_URL?.includes('localhost')
-    ? `http://${process.env.NEXT_PUBLIC_andji_BACKEND_URL}`
-    : `https://${process.env.NEXT_PUBLIC_andji_BACKEND_URL}`
+  BACKEND_URL.includes('localhost')
+    ? `http://${BACKEND_URL}`
+    : `https://${BACKEND_URL}`
 
 export const npmAppVersion = process.env.NEXT_PUBLIC_NPM_APP_VERSION

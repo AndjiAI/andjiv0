@@ -11,6 +11,7 @@ import {
   relabelForUserHandler,
 } from './admin/relabelRuns'
 import { validateAgentNameHandler } from './api/agents'
+import cliAuthRouter from './api/auth/cli'
 import { isRepoCoveredHandler } from './api/org'
 import usageHandler from './api/usage'
 import { checkAdmin } from './util/check-auth'
@@ -40,6 +41,9 @@ app.get('/healthz', (req, res) => {
 app.post('/api/usage', usageHandler)
 app.post('/api/orgs/is-repo-covered', isRepoCoveredHandler)
 app.get('/api/agents/validate-name', validateAgentNameHandler)
+
+// CLI authentication routes
+app.use('/api/auth/cli', cliAuthRouter)
 
 // Enable CORS for preflight requests to the admin relabel endpoint
 app.options('/api/admin/relabel-for-user', cors())

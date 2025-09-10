@@ -1,17 +1,6 @@
 {
   "description": "Template configuration for this project. See https://www.andji.com/config for all options.",
-  "startupProcesses": [
-    {
-      "name": "drizzle",
-      "command": "bun start-studio",
-      "stdoutFile": "debug/drizzle.log"
-    },
-    {
-      "name": "web-server",
-      "command": "bun start-web",
-      "stdoutFile": "debug/web.log"
-    }
-  ],
+  "startupProcesses": [],
   "fileChangeHooks": [
     {
       "name": "backend-unit-tests",
