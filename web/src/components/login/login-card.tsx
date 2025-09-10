@@ -22,7 +22,7 @@ export function LoginCard({ authCode }: { authCode?: string | null }) {
               </CardTitle>
               <CardDescription>
                 {authCode
-                  ? 'Continue to sign in to the andji CLI.'
+                  ? 'Continue to sign in to the Andji CLI.'
                   : 'Increased rate limits, priority support, and more!'}
               </CardDescription>
             </CardHeader>

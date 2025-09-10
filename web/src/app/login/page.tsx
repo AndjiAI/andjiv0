@@ -33,7 +33,7 @@ export default async function LoginPage({
           </CardHeader>
           <CardContent>
             <p>
-              Please try starting andji in your terminal again. If the
+              Please try starting Andji in your terminal again. If the
               problem persists, reach out to {env.NEXT_PUBLIC_SUPPORT_EMAIL}.
             </p>
           </CardContent>

@@ -120,8 +120,8 @@ export const authOptions: NextAuthOptions = {
   }) as Adapter,
   providers: [
     GitHubProvider({
-      clientId: env.andji_GITHUB_ID,
-      clientSecret: env.andji_GITHUB_SECRET,
+      clientId: env.ANDJI_GITHUB_ID,
+      clientSecret: env.ANDJI_GITHUB_SECRET,
     }),
   ],
   session: {
