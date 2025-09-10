@@ -332,13 +332,13 @@ export function displayMenu() {
   }
 
   console.log(`
-${colorizeRandom('██████╗')}${colorizeRandom(' ██████╗  ')}${colorizeRandom('██████╗ ')}${colorizeRandom('███████╗')}${colorizeRandom('██████╗ ')}${colorizeRandom('██╗   ██╗')}${colorizeRandom('███████╗')}${colorizeRandom('███████╗')}
-${colorizeRandom('██╔════╝')}${colorizeRandom('██╔═══██╗')}${colorizeRandom('██╔══██╗')}${colorizeRandom('██╔════╝')}${colorizeRandom('██╔══██╗')}${colorizeRandom('██║   ██║')}${colorizeRandom('██╔════╝')}${colorizeRandom('██╔════╝')}
-${colorizeRandom('██║     ')}${colorizeRandom('██║   ██║')}${colorizeRandom('██║  ██║')}${colorizeRandom('█████╗  ')}${colorizeRandom('██████╔╝')}${colorizeRandom('██║   ██║')}${colorizeRandom('█████╗  ')}${colorizeRandom('█████╗  ')}
-${colorizeRandom('██║     ')}${colorizeRandom('██║   ██║')}${colorizeRandom('██║  ██║')}${colorizeRandom('██╔══╝  ')}${colorizeRandom('██╔══██╗')}${colorizeRandom('██║   ██║')}${colorizeRandom('██╔══╝  ')}${colorizeRandom('██╔══╝  ')}
-${colorizeRandom('╚██████╗')}${colorizeRandom('╚██████╔╝')}${colorizeRandom('██████╔╝')}${colorizeRandom('███████╗')}${colorizeRandom('██████╔╝')}${colorizeRandom('╚██████╔╝')}${colorizeRandom('██║     ')}${colorizeRandom('██║     ')}
-${colorizeRandom(' ╚═════╝')}${colorizeRandom(' ╚═════╝ ')}${colorizeRandom('╚═════╝ ')}${colorizeRandom('╚══════╝')}${colorizeRandom('╚═════╝ ')}${colorizeRandom(' ╚═════╝ ')}${colorizeRandom('╚═╝     ')}${colorizeRandom('╚═╝     ')}
-`)
+    ${colorizeRandom(' █████╗ ███╗   ██╗██████╗      ██╗██╗')}
+    ${colorizeRandom('██╔══██╗████╗  ██║██╔══██╗     ██║██║')}
+    ${colorizeRandom('███████║██╔██╗ ██║██║  ██║     ██║██║')}
+    ${colorizeRandom('██╔══██║██║╚██╗██║██║  ██║██   ██║██║')}
+    ${colorizeRandom('██║  ██║██║ ╚████║██████╔╝╚█████╔╝██║')}
+    ${colorizeRandom('╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝  ╚════╝ ╚═╝')}
+  `)
 
   console.log(
     `\n${bold('Your AI pair programmer that understands, edits, and improves your codebase through natural conversation.')}`,
@@ -388,15 +388,14 @@ ${hasandjiJson ? green(`✅ ${andjiConfigFile}: detected`) : yellow(`❌ ${andji
       // Condition 4: Missing knowledge files
       return `${currentDirectoryLine}\n${green('✅ Git repo: detected')}
 ${green('✅ .gitignore: detected')}${gitignoreNote}
-${
-  !hasKnowledgeMd && !hasandjiJson
-    ? yellow(`❌ knowledge.md & ${andjiConfigFile}: missing - type "init"`)
-    : !hasKnowledgeMd
-      ? yellow('❌ knowledge.md: missing - type "init"')
-      : !hasandjiJson
-        ? yellow(`❌ ${andjiConfigFile}: missing - type "init"`)
-        : green(`✅ knowledge.md & ${andjiConfigFile}: detected`)
-}
+${!hasKnowledgeMd && !hasandjiJson
+          ? yellow(`❌ knowledge.md & ${andjiConfigFile}: missing - type "init"`)
+          : !hasKnowledgeMd
+            ? yellow('❌ knowledge.md: missing - type "init"')
+            : !hasandjiJson
+              ? yellow(`❌ ${andjiConfigFile}: missing - type "init"`)
+              : green(`✅ knowledge.md & ${andjiConfigFile}: detected`)
+        }
 ${hasKnowledgeMd && !hasandjiJson ? `\n${yellow(`${andjiConfigFile} runs deployment scripts for you to test your code and runs configured checks for you by running your dev server.`)}` : ''}
 ${!hasKnowledgeMd && hasandjiJson ? `\n${yellow('knowledge.md helps andji understand your project structure and codebase better for better results.')}` : ''}
 ${!hasKnowledgeMd && !hasandjiJson ? `\n${yellow('knowledge.md helps andji understand your project structure and codebase better for better results.')}\n${yellow(`${andjiConfigFile} runs deployment scripts for you to test your code and runs configured checks for you by running your dev server.`)}` : ''}`
