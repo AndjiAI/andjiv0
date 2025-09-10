@@ -79,52 +79,88 @@ router.post('/code', async (req, res) => {
 
 // GET /api/auth/cli/status
 router.get('/status', async (req, res) => {
-  const fingerprintId = req.query.fingerprintId as string
+  const reqSchema = z.object({
+    fingerprintId: z.string(),
+    fingerprintHash: z.string(),
+    expiresAt: z.string().transform(Number),
+  })
+  
+  const result = reqSchema.safeParse({
+    fingerprintId: req.query.fingerprintId,
+    fingerprintHash: req.query.fingerprintHash,
+    expiresAt: req.query.expiresAt,
+  })
+  
+  if (!result.success) {
+    return res.status(400).json({ error: 'Invalid query parameters' })
+  }
 
-  if (!fingerprintId) {
-    return res.status(400).json({ error: 'Missing fingerprintId' })
+  const { fingerprintId, fingerprintHash, expiresAt } = result.data
+
+  // Check if code has expired
+  if (Date.now() > expiresAt) {
+    logger.info(
+      { fingerprintId, fingerprintHash, expiresAt },
+      'Auth code expired'
+    )
+    return res.status(401).json({ error: 'Authentication failed' })
+  }
+
+  // Validate the auth code
+  const expectedHash = genAuthCode(
+    fingerprintId,
+    expiresAt.toString(),
+    env.NEXTAUTH_SECRET || 'default-secret-key'
+  )
+  
+  if (fingerprintHash !== expectedHash) {
+    logger.info(
+      { fingerprintId, fingerprintHash, expectedHash },
+      'Invalid auth code'
+    )
+    return res.status(401).json({ error: 'Authentication failed' })
   }
 
   try {
-    const session = await db
+    // Check for active session with user
+    const users = await db
       .select({
-        userId: schema.session.userId,
-        expires: schema.session.expires,
+        id: schema.user.id,
+        email: schema.user.email,
+        name: schema.user.name,
+        authToken: schema.session.sessionToken,
       })
-      .from(schema.session)
+      .from(schema.user)
+      .leftJoin(schema.session, eq(schema.user.id, schema.session.userId))
       .where(
         and(
           eq(schema.session.fingerprint_id, fingerprintId),
           gt(schema.session.expires, new Date())
         )
       )
-      .limit(1)
 
-    if (session.length === 0) {
-      return res.json({ authenticated: false })
+    if (users.length === 0) {
+      logger.info(
+        { fingerprintId, fingerprintHash },
+        'No active session found'
+      )
+      return res.status(401).json({ error: 'Authentication failed' })
     }
 
-    const user = await db
-      .select({
-        id: schema.user.id,
-        email: schema.user.email,
-        name: schema.user.name,
-      })
-      .from(schema.user)
-      .where(eq(schema.user.id, session[0].userId))
-      .limit(1)
-
-    if (user.length === 0) {
-      return res.json({ authenticated: false })
-    }
-
+    const user = users[0]
     return res.json({
-      authenticated: true,
-      user: user[0],
-      expiresAt: session[0].expires,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        authToken: user.authToken,
+        fingerprintId,
+        fingerprintHash,
+      },
+      message: 'Authentication successful!',
     })
   } catch (error) {
-    logger.error({ error }, 'Error checking auth status')
+    logger.error({ error }, 'Error checking login status')
     return res.status(500).json({ error: 'Internal server error' })
   }
 })
